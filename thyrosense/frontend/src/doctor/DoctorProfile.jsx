@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../AuthContext'
 import { useToast } from '../components/Toast'
+import api from '../api'
 
 function Field({ label, type = 'text', value, onChange, placeholder }) {
   return (
@@ -32,9 +33,15 @@ export default function DoctorProfile() {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
-    await new Promise(r => setTimeout(r, 800))
-    setSaving(false)
-    toast('Profile updated successfully', 'success')
+    try {
+      const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+      await api.put('/profile', { user_id: uid, full_name: name, specialty, hospital: institution })
+      toast('Profile updated successfully', 'success')
+    } catch {
+      toast('Failed to save profile', 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

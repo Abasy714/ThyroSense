@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../AuthContext'
 import ClassBadge from './components/ClassBadge'
+import api from '../api'
 
 function StatCard({ label, value, delay }) {
   return (
@@ -61,14 +63,19 @@ export default function PatientHome() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const history = (() => {
-    try { return JSON.parse(localStorage.getItem('thyrosense-history') || '[]') }
-    catch { return [] }
-  })()
+  const [predictions, setPredictions] = useState([])
+
+  useEffect(() => {
+    const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+    api.get(`/patients/me?user_id=${uid}`).then(res => {
+      setPredictions(res.data.predictions || [])
+    }).catch(() => {})
+  }, [])
 
   const lastName = user?.name?.split(' ')[0] || 'Patient'
   const accountSince = 'May 2026'
-  const lastResult = history.length > 0 ? history[history.length - 1] : null
+  const lastResult = predictions.length > 0 ? predictions[0] : null
+  const history = predictions
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
@@ -257,7 +264,7 @@ export default function PatientHome() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <ClassBadge diagnosisClass={item.predicted_class} size="sm" />
                     <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
                   <span style={{

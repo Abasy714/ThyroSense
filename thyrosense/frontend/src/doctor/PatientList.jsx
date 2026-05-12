@@ -1,17 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { mockPatients, getLatestClass } from '../data/mockPatients'
+import api from '../api'
 import ClassBadge from '../patient/components/ClassBadge'
 
 const RISK_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' }
 const ALL_CLASSES = ['healthy', 'hypothyroid', 'hyperthyroid', 'binding_protein_disorder']
 const CLASS_LABELS = { healthy: 'Healthy', hypothyroid: 'Hypothyroid', hyperthyroid: 'Hyperthyroid', binding_protein_disorder: 'Binding Protein' }
 
+function getLatestClass(patient) {
+  return patient.predictions?.[0]?.predicted_class || null
+}
+
+function getAge(dob) {
+  if (!dob) return '—'
+  const diff = Date.now() - new Date(dob).getTime()
+  return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000))
+}
+
 function PatientCard({ patient, delay }) {
   const navigate = useNavigate()
   const cls = getLatestClass(patient)
-  const pred = patient.predictions[patient.predictions.length - 1]
+  const pred = patient.predictions?.[0]
 
   return (
     <motion.div
@@ -19,35 +29,25 @@ function PatientCard({ patient, delay }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
       onClick={() => navigate(`/doctor/patients/${patient.id}`)}
-      style={{
-        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
-        padding: '1.25rem', cursor: 'pointer', transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
-      }}
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '1.25rem', cursor: 'pointer', transition: 'border-color 0.18s ease, box-shadow 0.18s ease' }}
       whileHover={{ y: -2 }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.12)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 12, background: 'var(--surface-hover)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem',
-            color: 'var(--text-muted)', border: '1px solid var(--border)',
-          }}>
-            {patient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+            {patient.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
           </div>
           <div>
-            <div style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '0.87rem', color: 'var(--text)' }}>
-              {patient.name}
-            </div>
+            <div style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '0.87rem', color: 'var(--text)' }}>{patient.full_name}</div>
             <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              {patient.age}y · {patient.sex === 'M' ? 'Male' : 'Female'}
+              {getAge(patient.dob)}y · {patient.sex === 'M' ? 'Male' : 'Female'}
             </div>
           </div>
         </div>
-        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontFamily: 'DM Sans, sans-serif', fontSize: '0.63rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: RISK_COLORS[patient.riskLevel], background: `color-mix(in srgb, ${RISK_COLORS[patient.riskLevel]} 12%, transparent)` }}>
-          {patient.riskLevel}
+        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontFamily: 'DM Sans, sans-serif', fontSize: '0.63rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: RISK_COLORS[patient.risk_level], background: `color-mix(in srgb, ${RISK_COLORS[patient.risk_level]} 12%, transparent)` }}>
+          {patient.risk_level}
         </span>
       </div>
 
@@ -55,7 +55,7 @@ function PatientCard({ patient, delay }) {
 
       <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          {patient.predictions.length} prediction{patient.predictions.length !== 1 ? 's' : ''}
+          {(patient.predictions || []).length} prediction{(patient.predictions || []).length !== 1 ? 's' : ''}
         </span>
         {pred && (
           <span style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.83rem', color: 'var(--text)' }}>
@@ -68,15 +68,21 @@ function PatientCard({ patient, delay }) {
 }
 
 export default function PatientList() {
+  const [patients, setPatients] = useState([])
   const [search, setSearch] = useState('')
   const [filterClass, setFilterClass] = useState('all')
   const [filterRisk, setFilterRisk] = useState('all')
 
-  const filtered = mockPatients.filter(p => {
+  useEffect(() => {
+    const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+    api.get(`/patients?user_id=${uid}`).then(res => setPatients(res.data || [])).catch(() => {})
+  }, [])
+
+  const filtered = patients.filter(p => {
     const cls = getLatestClass(p)
-    const matchSearch = search === '' || p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = search === '' || p.full_name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase())
     const matchClass = filterClass === 'all' || cls === filterClass
-    const matchRisk = filterRisk === 'all' || p.riskLevel === filterRisk
+    const matchRisk = filterRisk === 'all' || p.risk_level === filterRisk
     return matchSearch && matchClass && matchRisk
   })
 
@@ -87,7 +93,7 @@ export default function PatientList() {
           Patient Roster
         </h1>
         <p style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '0.3rem', marginBottom: 0 }}>
-          {filtered.length} of {mockPatients.length} patients
+          {filtered.length} of {patients.length} patients
         </p>
       </div>
 
@@ -105,17 +111,11 @@ export default function PatientList() {
             onBlur={e => (e.target.style.borderColor = 'var(--border)')}
           />
         </div>
-        <select
-          value={filterClass} onChange={e => setFilterClass(e.target.value)}
-          style={{ padding: '0.6rem 0.85rem', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.84rem', cursor: 'pointer', outline: 'none' }}
-        >
+        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} style={{ padding: '0.6rem 0.85rem', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.84rem', cursor: 'pointer', outline: 'none' }}>
           <option value="all">All Diagnoses</option>
           {ALL_CLASSES.map(c => <option key={c} value={c}>{CLASS_LABELS[c]}</option>)}
         </select>
-        <select
-          value={filterRisk} onChange={e => setFilterRisk(e.target.value)}
-          style={{ padding: '0.6rem 0.85rem', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.84rem', cursor: 'pointer', outline: 'none' }}
-        >
+        <select value={filterRisk} onChange={e => setFilterRisk(e.target.value)} style={{ padding: '0.6rem 0.85rem', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.84rem', cursor: 'pointer', outline: 'none' }}>
           <option value="all">All Risk Levels</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>

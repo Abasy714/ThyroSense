@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { getPatientById } from '../data/mockPatients'
+import api from '../api'
 import ClassBadge from '../patient/components/ClassBadge'
 import ShapChart from '../patient/components/ShapChart'
 
@@ -22,10 +23,28 @@ function InfoRow({ label, value }) {
   )
 }
 
+function getAge(dob) {
+  if (!dob) return '—'
+  return Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+}
+
 export default function PatientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const patient = getPatientById(id)
+  const [patient, setPatient] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+    api.get(`/patients/${id}?user_id=${uid}`).then(res => {
+      setPatient(res.data)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [id])
+
+  if (loading) {
+    return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)' }}>Loading…</div>
+  }
 
   if (!patient) {
     return (
@@ -38,7 +57,7 @@ export default function PatientDetail() {
     )
   }
 
-  const sorted = [...patient.predictions].sort((a, b) => new Date(b.date) - new Date(a.date))
+  const sorted = [...(patient.predictions || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
   const latest = sorted[0]
   const classColor = CLASS_COLORS[latest?.predicted_class] || '#6B7280'
 
@@ -63,20 +82,20 @@ export default function PatientDetail() {
         style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}
       >
         <div style={{ width: 60, height: 60, borderRadius: 16, background: 'var(--surface)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1.3rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-          {patient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          {patient.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
             <h1 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1.55rem', color: 'var(--text)', margin: 0, letterSpacing: '-0.025em' }}>
-              {patient.name}
+              {patient.full_name}
             </h1>
             {latest && <ClassBadge diagnosisClass={latest.predicted_class} size="md" />}
-            <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 99, fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: RISK_COLORS[patient.riskLevel], background: `color-mix(in srgb, ${RISK_COLORS[patient.riskLevel]} 12%, transparent)` }}>
-              {patient.riskLevel} risk
+            <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 99, fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: RISK_COLORS[patient.risk_level], background: `color-mix(in srgb, ${RISK_COLORS[patient.risk_level]} 12%, transparent)` }}>
+              {patient.risk_level} risk
             </span>
           </div>
           <p style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)', fontSize: '0.83rem', margin: 0 }}>
-            {patient.email} · {patient.phone}
+            {patient.email}{patient.phone ? ` · ${patient.phone}` : ''}
           </p>
         </div>
       </motion.div>
@@ -91,12 +110,11 @@ export default function PatientDetail() {
           <h3 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 0.85rem' }}>
             Patient Info
           </h3>
-          <InfoRow label="Date of Birth" value={new Date(patient.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
-          <InfoRow label="Age" value={`${patient.age} years`} />
-          <InfoRow label="Sex" value={patient.sex === 'M' ? 'Male' : 'Female'} />
+          <InfoRow label="Date of Birth" value={patient.dob ? new Date(patient.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'} />
+          <InfoRow label="Age" value={`${getAge(patient.dob)} years`} />
+          <InfoRow label="Sex" value={patient.sex === 'M' ? 'Male' : patient.sex === 'F' ? 'Female' : '—'} />
           <InfoRow label="Status" value={patient.status} />
-          <InfoRow label="Last Visit" value={new Date(patient.lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />
-          <InfoRow label="Total Predictions" value={patient.predictions.length} />
+          <InfoRow label="Total Predictions" value={sorted.length} />
         </motion.div>
 
         {latest && (
@@ -149,7 +167,7 @@ export default function PatientDetail() {
                       {i === 0 && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Latest</span>}
                     </div>
                     <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                      {new Date(pred.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                      {new Date(pred.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                   </div>
                   <span style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1rem', color }}>

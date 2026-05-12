@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../AuthContext'
-import { getHighRiskPatients } from '../data/mockPatients'
+import api from '../api'
 
 function Logo() {
   return (
@@ -19,8 +20,6 @@ const PAGE_TITLES = {
   '/doctor/profile': 'My Profile',
 }
 
-const highRiskCount = getHighRiskPatients().length
-
 const NAV_ITEMS = [
   {
     to: '/doctor', end: true, label: 'Overview',
@@ -29,7 +28,7 @@ const NAV_ITEMS = [
   {
     to: '/doctor/patients', label: 'Patients',
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.4" /><path d="M1.5 13c0-3 2-4.5 4.5-4.5S10.5 10 10.5 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><circle cx="12" cy="5.5" r="2" stroke="currentColor" strokeWidth="1.3" /><path d="M11 10.5c1.5 0 3.5.8 3.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>,
-    badge: highRiskCount,
+    badge: null,
   },
   {
     to: '/doctor/profile', label: 'Profile',
@@ -41,6 +40,19 @@ export default function DoctorApp() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [highRiskCount, setHighRiskCount] = useState(0)
+
+  useEffect(() => {
+    const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+    api.get(`/patients?user_id=${uid}`).then(res => {
+      const count = (res.data || []).filter(p => p.risk_level === 'high').length
+      setHighRiskCount(count)
+    }).catch(() => {})
+  }, [])
+
+  const navItems = NAV_ITEMS.map(item =>
+    item.to === '/doctor/patients' ? { ...item, badge: highRiskCount } : item
+  )
 
   const pageTitle = Object.entries(PAGE_TITLES).reverse().find(([path]) => location.pathname.startsWith(path))?.[1] || 'Doctor Portal'
 
@@ -68,7 +80,7 @@ export default function DoctorApp() {
           <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.63rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.09em', padding: '0 0.5rem', marginBottom: '0.5rem' }}>
             Navigation
           </p>
-          {NAV_ITEMS.map(({ to, end, label, icon, badge }) => (
+          {navItems.map(({ to, end, label, icon, badge }) => (
             <NavLink
               key={to} to={to} end={end}
               style={({ isActive }) => ({

@@ -34,9 +34,7 @@ venv.bak/
 *.ipynb_checkpoints
 
 # ML Models & Large Files
-backend/model/*.pkl
 backend/model/*.joblib
-*.pkl
 *.joblib
 *.h5
 *.pt

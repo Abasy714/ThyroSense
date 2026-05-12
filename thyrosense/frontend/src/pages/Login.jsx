@@ -38,16 +38,14 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    const mockUser = {
-      id: 'usr_' + Math.random().toString(36).slice(2, 9),
-      name: role === 'doctor' ? 'Dr. Alex Morgan' : 'Jordan Rivera',
-      email,
-      role,
+    try {
+      const userData = await login(email, password, role)
+      navigate(userData.role === 'doctor' ? '/doctor' : '/patient')
+    } catch (err) {
+      console.error('Login failed:', err)
     }
-    login(mockUser)
-    navigate(role === 'doctor' ? '/doctor' : '/patient')
   }
 
   return (

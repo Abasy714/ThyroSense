@@ -21,13 +21,13 @@ export default function ActivityFeed({ predictions }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '0.83rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {pred.patient?.name || 'Unknown'}
+                {pred.patient?.full_name || 'Unknown'}
               </span>
               <ClassBadge diagnosisClass={pred.predicted_class} size="sm" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                {new Date(pred.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {Math.round((pred.confidence || 0) * 100)}% confidence
+                {new Date(pred.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {Math.round((pred.confidence || 0) * 100)}% confidence
               </span>
             </div>
           </div>

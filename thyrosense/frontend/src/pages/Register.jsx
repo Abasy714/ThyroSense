@@ -80,7 +80,7 @@ function LogoMark() {
 
 export default function Register() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { register: registerUser } = useAuth()
 
   const [role, setRole] = useState('patient')
   const [name, setName] = useState('')
@@ -92,21 +92,19 @@ export default function Register() {
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (password !== confirm) {
       setError('Passwords do not match.')
       return
     }
     setError('')
-    const mockUser = {
-      id: 'usr_' + Math.random().toString(36).slice(2, 9),
-      name,
-      email,
-      role,
+    try {
+      await registerUser({ email, password, full_name: name, role, dob, phone })
+      navigate(role === 'doctor' ? '/doctor' : '/patient')
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Registration failed.')
     }
-    login(mockUser)
-    navigate(role === 'doctor' ? '/doctor' : '/patient')
   }
 
   return (

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import axios from 'axios'
+import api from '../api'
 import StepIndicator from './components/StepIndicator'
 
 const STEPS = ['Personal Info', 'Lab Results', 'Clinical History']
@@ -319,46 +319,45 @@ export default function PredictionForm() {
     setLoading(true)
     setError(null)
     try {
+      const b = v => v ? 1 : 0
       const payload = {
-        data: {
-          age: Number(form.age),
-          sex: form.sex,
-          TSH: form.TSH.measured && form.TSH.value !== '' ? Number(form.TSH.value) : null,
-          T3: form.T3.measured && form.T3.value !== '' ? Number(form.T3.value) : null,
-          TT4: form.TT4.measured && form.TT4.value !== '' ? Number(form.TT4.value) : null,
-          T4U: form.T4U.measured && form.T4U.value !== '' ? Number(form.T4U.value) : null,
-          FTI: form.FTI.measured && form.FTI.value !== '' ? Number(form.FTI.value) : null,
-          on_thyroxine: form.on_thyroxine,
-          query_on_thyroxine: form.query_on_thyroxine,
-          on_antithyroid_medication: form.on_antithyroid_medication,
-          sick: form.sick,
-          pregnant: form.pregnant,
-          thyroid_surgery: form.thyroid_surgery,
-          I131_treatment: form.I131_treatment,
-          query_hypothyroid: form.query_hypothyroid,
-          query_hyperthyroid: form.query_hyperthyroid,
-          lithium: form.lithium,
-          goitre: form.goitre,
-          tumor: form.tumor,
-          hypopituitary: form.hypopituitary,
-          psych: form.psych,
-        },
+        age: Number(form.age),
+        sex: form.sex === 'M' ? 1 : 0,
+        TSH: form.TSH.measured && form.TSH.value !== '' ? Number(form.TSH.value) : 2.0,
+        T3: form.T3.measured && form.T3.value !== '' ? Number(form.T3.value) : 1.5,
+        TT4: form.TT4.measured && form.TT4.value !== '' ? Number(form.TT4.value) : 100.0,
+        T4U: form.T4U.measured && form.T4U.value !== '' ? Number(form.T4U.value) : 1.0,
+        FTI: form.FTI.measured && form.FTI.value !== '' ? Number(form.FTI.value) : 90.0,
+        on_thyroxine: b(form.on_thyroxine),
+        query_on_thyroxine: b(form.query_on_thyroxine),
+        on_antithyroid_medication: b(form.on_antithyroid_medication),
+        sick: b(form.sick),
+        pregnant: b(form.pregnant),
+        thyroid_surgery: b(form.thyroid_surgery),
+        I131_treatment: b(form.I131_treatment),
+        query_hypothyroid: b(form.query_hypothyroid),
+        query_hyperthyroid: b(form.query_hyperthyroid),
+        lithium: b(form.lithium),
+        goitre: b(form.goitre),
+        tumor: b(form.tumor),
+        hypopituitary: b(form.hypopituitary),
+        psych: b(form.psych),
+        TSH_measured: b(form.TSH.measured),
+        T3_measured: b(form.T3.measured),
+        TT4_measured: b(form.TT4.measured),
+        T4U_measured: b(form.T4U.measured),
+        FTI_measured: b(form.FTI.measured),
       }
-      const { data } = await axios.post('/api/predict', payload)
-      const result = {
-        id: Date.now(),
-        date: new Date().toISOString(),
+      const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+      const { data } = await api.post(`/predict?user_id=${uid}`, payload)
+      localStorage.setItem('thyrosense-last-result', JSON.stringify({
         predicted_class: data.predicted_class,
         confidence: data.confidence,
         cluster_id: data.cluster_id,
         top_features: data.top_features,
         clinical_interpretation: data.clinical_interpretation,
-        form_data: payload.data,
-      }
-      localStorage.setItem('thyrosense-last-result', JSON.stringify(result))
-      const history = (() => { try { return JSON.parse(localStorage.getItem('thyrosense-history') || '[]') } catch { return [] } })()
-      history.push(result)
-      localStorage.setItem('thyrosense-history', JSON.stringify(history))
+        form_data: payload,
+      }))
       navigate('/patient/result')
     } catch {
       setError('Analysis failed. Please check your connection and try again.')

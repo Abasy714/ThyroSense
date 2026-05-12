@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ClassBadge from './components/ClassBadge'
 import ShapChart from './components/ShapChart'
+import api from '../api'
 
 const CLASS_COLORS = {
   healthy: '#10B981',
@@ -79,7 +80,7 @@ function Drawer({ item, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 0.3rem' }}>
-              {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+              {new Date(item.created_at).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
             </p>
             <h2 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1.3rem', color: 'var(--text)', margin: 0, letterSpacing: '-0.02em' }}>
               Prediction Details
@@ -141,13 +142,16 @@ function Drawer({ item, onClose }) {
 export default function PatientHistory() {
   const navigate = useNavigate()
   const [selected, setSelected] = useState(null)
+  const [history, setHistory] = useState([])
 
-  const history = (() => {
-    try { return JSON.parse(localStorage.getItem('thyrosense-history') || '[]') }
-    catch { return [] }
-  })()
+  useEffect(() => {
+    const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
+    api.get(`/patients/me?user_id=${uid}`).then(res => {
+      setHistory(res.data.predictions || [])
+    }).catch(() => {})
+  }, [])
 
-  const sorted = [...history].reverse()
+  const sorted = [...history]
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
@@ -207,7 +211,7 @@ export default function PatientHistory() {
                   onMouseLeave={e => (e.currentTarget.style.background = even ? 'var(--surface)' : 'color-mix(in srgb, var(--surface-hover) 50%, var(--surface))')}
                 >
                   <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                    {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                   <ClassBadge diagnosisClass={item.predicted_class} size="sm" />
                   <ConfidenceBar confidence={item.confidence} />

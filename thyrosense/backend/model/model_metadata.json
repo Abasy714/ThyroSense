@@ -1,0 +1,35 @@
+{
+    "project": "ThyroSense",
+    "training_stage": "SMOTE + GridSearchCV ML models",
+    "best_model_name": "XGBoost",
+    "selection_metric": "GridSearchCV macro F1 on SMOTE-balanced training data",
+    "smote_type": "Partial SMOTE",
+    "target_ratio": 0.4,
+    "feature_columns": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+    ],
+    "class_names": [
+        "binding_protein_disorder",
+        "healthy",
+        "hyperthyroid",
+        "hypothyroid"
+    ],
+    "saved_files": {
+        "best_model": "best_ml_model.pkl",
+        "scaler": "scaler.pkl",
+        "label_encoder": "label_encoder.pkl",
+        "feature_columns": "feature_columns.pkl",
+        "all_gridsearch_best_models": "all_gridsearch_best_models.pkl",
+        "gridsearch_results": "gridsearch_results.csv"
+    }
+}

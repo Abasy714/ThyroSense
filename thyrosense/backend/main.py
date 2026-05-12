@@ -5,7 +5,6 @@ from typing import Any
 
 app = FastAPI(title="ThyroSense API", version="0.1.0")
 
-# Allow requests from the Vite dev server
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -16,50 +15,65 @@ app.add_middleware(
 
 
 class PatientInput(BaseModel):
-    """Accepts arbitrary patient lab values as key-value pairs.
-    Exact fields will be validated once the model schema is finalised."""
     data: dict[str, Any]
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    role: str
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str
+    license_no: str | None = None
+    dob: str | None = None
+    phone: str | None = None
+
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str
+
+
+class FeatureImportance(BaseModel):
+    feature: str
+    shap_value: float
 
 
 class PredictionResponse(BaseModel):
     predicted_class: str
     confidence: float
     cluster_id: int
-    top_features: list
+    top_features: list[FeatureImportance]
     clinical_interpretation: str
 
 
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
-
 @app.get("/")
 def health_check():
-    """Liveness probe — confirms the API is running."""
     return {"status": "ok", "app": "ThyroSense"}
 
 
-# ---------------------------------------------------------------------------
-# Prediction endpoint
-# ---------------------------------------------------------------------------
-
 @app.post("/predict", response_model=PredictionResponse)
 def predict(patient: PatientInput):
-    """Accepts patient lab data and returns a thyroid disorder prediction.
-
-    Currently returns a mock response. Wire up pipeline/predict.py once the
-    model artefact has been exported from the notebook.
-    """
-    # TODO: replace mock with real pipeline call
-    # from pipeline.predict import preprocess, predict as run_predict, get_shap_values, get_cluster
-    # processed = preprocess(patient.data)
-    # result = run_predict(processed)
-    # ...
-
+    # TODO: replace mock with real pipeline once model is exported from notebook
     return PredictionResponse(
         predicted_class="healthy",
         confidence=0.91,
         cluster_id=2,
-        top_features=[],
-        clinical_interpretation="No thyroid disorder detected.",
+        top_features=[
+            FeatureImportance(feature="TSH", shap_value=0.42),
+            FeatureImportance(feature="FTI", shap_value=0.31),
+            FeatureImportance(feature="on_thyroxine", shap_value=0.18),
+            FeatureImportance(feature="T3", shap_value=0.12),
+            FeatureImportance(feature="TT4", shap_value=0.09),
+        ],
+        clinical_interpretation=(
+            "No thyroid disorder detected. Hormone levels are within normal range."
+        ),
     )

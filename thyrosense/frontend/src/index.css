@@ -1,3 +1,99 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Clash Display from Fontshare */
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap');
+
+/* Default CSS variable values (midnight theme — overridden by ThemeContext on mount) */
+:root {
+  --bg: #0A1628;
+  --surface: #111F3A;
+  --surface-hover: #162848;
+  --surface-alpha: rgba(17, 31, 58, 0.85);
+  --border: #1E3A5F;
+  --text: #F0F4FF;
+  --text-muted: #8BA3C7;
+  --accent: #00D4B4;
+  --accent-hover: #00BFA0;
+  --accent-text: #0A1628;
+  --danger: #FF6B6B;
+  --success: #00D4B4;
+  --warning: #F59E0B;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Clash Display', sans-serif;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up-1 {
+  opacity: 0;
+  animation: fadeUp 0.45s ease-out 0.05s forwards;
+}
+.fade-up-2 {
+  opacity: 0;
+  animation: fadeUp 0.45s ease-out 0.12s forwards;
+}
+.fade-up-3 {
+  opacity: 0;
+  animation: fadeUp 0.45s ease-out 0.19s forwards;
+}
+.fade-up-4 {
+  opacity: 0;
+  animation: fadeUp 0.45s ease-out 0.26s forwards;
+}
+.fade-up-5 {
+  opacity: 0;
+  animation: fadeUp 0.45s ease-out 0.33s forwards;
+}
+.fade-up-6 {
+  opacity: 0;
+  animation: fadeUp 0.45s ease-out 0.40s forwards;
+}
+
+@keyframes growWidth {
+  from { width: 0%; }
+}
+
+.confidence-bar {
+  animation: growWidth 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  nav, aside, header, .no-print, button { display: none !important; }
+  main { margin: 0 !important; padding: 1rem !important; }
+  * { box-shadow: none !important; }
+}
+
+@media (max-width: 640px) {
+  ::-webkit-scrollbar { width: 4px; }
+}

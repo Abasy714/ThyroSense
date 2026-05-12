@@ -1,0 +1,166 @@
+import { useParams, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { getPatientById } from '../data/mockPatients'
+import ClassBadge from '../patient/components/ClassBadge'
+import ShapChart from '../patient/components/ShapChart'
+
+const CLASS_COLORS = {
+  healthy: '#10B981',
+  hypothyroid: '#3B82F6',
+  hyperthyroid: '#EF4444',
+  binding_protein_disorder: '#8B5CF6',
+}
+
+const RISK_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' }
+
+function InfoRow({ label, value }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 0', borderBottom: '1px solid var(--border)' }}>
+      <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.83rem', fontWeight: 600, color: 'var(--text)' }}>{value}</span>
+    </div>
+  )
+}
+
+export default function PatientDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const patient = getPatientById(id)
+
+  if (!patient) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', gap: '1rem' }}>
+        <p style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)' }}>Patient not found.</p>
+        <button onClick={() => navigate('/doctor/patients')} style={{ padding: '10px 22px', borderRadius: 9, background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 700 }}>
+          Back to Roster
+        </button>
+      </div>
+    )
+  }
+
+  const sorted = [...patient.predictions].sort((a, b) => new Date(b.date) - new Date(a.date))
+  const latest = sorted[0]
+  const classColor = CLASS_COLORS[latest?.predicted_class] || '#6B7280'
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+      <button
+        onClick={() => navigate('/doctor/patients')}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.82rem', cursor: 'pointer', marginBottom: '1.5rem', padding: 0, transition: 'color 0.15s ease' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <path d="M8 2L4 6.5 8 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Back to Roster
+      </button>
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.05 }}
+        style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}
+      >
+        <div style={{ width: 60, height: 60, borderRadius: 16, background: 'var(--surface)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1.3rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+          {patient.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+            <h1 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1.55rem', color: 'var(--text)', margin: 0, letterSpacing: '-0.025em' }}>
+              {patient.name}
+            </h1>
+            {latest && <ClassBadge diagnosisClass={latest.predicted_class} size="md" />}
+            <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 99, fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: RISK_COLORS[patient.riskLevel], background: `color-mix(in srgb, ${RISK_COLORS[patient.riskLevel]} 12%, transparent)` }}>
+              {patient.riskLevel} risk
+            </span>
+          </div>
+          <p style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)', fontSize: '0.83rem', margin: 0 }}>
+            {patient.email} · {patient.phone}
+          </p>
+        </div>
+      </motion.div>
+
+      <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.1 }}
+          style={{ flex: '1 1 220px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.5rem' }}
+        >
+          <h3 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 0.85rem' }}>
+            Patient Info
+          </h3>
+          <InfoRow label="Date of Birth" value={new Date(patient.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
+          <InfoRow label="Age" value={`${patient.age} years`} />
+          <InfoRow label="Sex" value={patient.sex === 'M' ? 'Male' : 'Female'} />
+          <InfoRow label="Status" value={patient.status} />
+          <InfoRow label="Last Visit" value={new Date(patient.lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />
+          <InfoRow label="Total Predictions" value={patient.predictions.length} />
+        </motion.div>
+
+        {latest && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.15 }}
+            style={{ flex: '2 1 320px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.5rem' }}
+          >
+            <h3 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 1rem' }}>
+              Latest Prediction
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: `${classColor}0D`, border: `1.5px solid ${classColor}35`, borderRadius: 12 }}>
+              <ClassBadge diagnosisClass={latest.predicted_class} size="md" />
+              <span style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1.6rem', color: classColor, letterSpacing: '-0.02em' }}>
+                {Math.round((latest.confidence || 0) * 100)}%
+              </span>
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>confidence</span>
+            </div>
+            {latest.clinical_interpretation && (
+              <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.83rem', color: 'var(--text-muted)', lineHeight: 1.65, margin: '0 0 1rem', padding: '0.75rem 1rem', background: 'var(--surface-hover)', borderRadius: 10, borderLeft: `3px solid ${classColor}` }}>
+                {latest.clinical_interpretation}
+              </p>
+            )}
+            {latest.top_features?.length > 0 && (
+              <ShapChart features={latest.top_features} classColor={classColor} />
+            )}
+          </motion.div>
+        )}
+      </div>
+
+      {sorted.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.2 }}
+          style={{ marginTop: '1.25rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.5rem' }}
+        >
+          <h3 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 1.25rem' }}>
+            Prediction History
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {sorted.map((pred, i) => {
+              const color = CLASS_COLORS[pred.predicted_class] || '#6B7280'
+              return (
+                <div key={pred.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.9rem 1rem', background: i === 0 ? `${color}08` : 'var(--surface-hover)', border: i === 0 ? `1px solid ${color}30` : '1px solid var(--border)', borderRadius: 11 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <ClassBadge diagnosisClass={pred.predicted_class} size="sm" />
+                      {i === 0 && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Latest</span>}
+                    </div>
+                    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                      {new Date(pred.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <span style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1rem', color }}>
+                    {Math.round((pred.confidence || 0) * 100)}%
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  )
+}

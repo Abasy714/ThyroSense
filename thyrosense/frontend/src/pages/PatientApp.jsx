@@ -17,6 +17,7 @@ const PAGE_TITLES = {
   '/patient/predict': 'New Assessment',
   '/patient/result': 'Prediction Result',
   '/patient/history': 'My Predictions',
+  '/patient/profile': 'My Profile',
 }
 
 const NAV_ITEMS = [
@@ -31,6 +32,10 @@ const NAV_ITEMS = [
   {
     to: '/patient/history', label: 'My History',
     icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="1.5" width="11" height="13" rx="2" stroke="currentColor" strokeWidth="1.4" /><line x1="5" y1="5.5" x2="11" y2="5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><line x1="5" y1="8.5" x2="9" y2="8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><line x1="5" y1="11.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>,
+  },
+  {
+    to: '/patient/profile', label: 'My Profile',
+    icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.4" /><path d="M2 13.5c0-2.485 2.686-4.5 6-4.5s6 2.015 6 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>,
   },
 ]
 

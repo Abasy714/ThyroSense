@@ -58,6 +58,7 @@ function ConfidenceBar({ confidence }) {
 
 function Drawer({ item, onClose }) {
   const classColor = CLASS_COLORS[item.predicted_class] || '#6B7280'
+  const drawerNotes = item.notes || []
   return (
     <>
       <motion.div
@@ -129,6 +130,24 @@ function Drawer({ item, onClose }) {
                 <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0.55rem 0.8rem' }}>
                   <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
                   <div style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--text)' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {drawerNotes.length > 0 && (
+          <div style={{ padding: '1rem', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderLeft: '4px solid var(--accent)', borderRadius: '0 10px 10px 0' }}>
+            <h4 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)', margin: '0 0 0.75rem' }}>
+              Doctor Notes
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {drawerNotes.map(note => (
+                <div key={note.id}>
+                  <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.84rem', color: 'var(--text)', margin: 0, lineHeight: 1.6 }}>{note.note}</p>
+                  <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                    Dr. {note.doctor_name} · {new Date(note.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
                 </div>
               ))}
             </div>

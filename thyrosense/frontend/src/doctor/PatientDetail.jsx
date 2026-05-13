@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import api from '../api'
 import ClassBadge from '../patient/components/ClassBadge'
 import ShapChart from '../patient/components/ShapChart'
+import { useToast } from '../components/Toast'
 
 const CLASS_COLORS = {
   healthy: '#10B981',
@@ -31,16 +32,45 @@ function getAge(dob) {
 export default function PatientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [patient, setPatient] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [notes, setNotes] = useState({})
+  const [noteInputs, setNoteInputs] = useState({})
 
   useEffect(() => {
     const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
     api.get(`/patients/${id}?user_id=${uid}`).then(res => {
-      setPatient(res.data)
+      const p = res.data
+      setPatient(p)
       setLoading(false)
+      const initialNotes = {}
+      ;(p.predictions || []).forEach(pred => {
+        initialNotes[pred.id] = pred.notes || []
+      })
+      setNotes(initialNotes)
     }).catch(() => setLoading(false))
   }, [id])
+
+  const handleNoteSubmit = async (predictionId) => {
+    const text = (noteInputs[predictionId] || '').trim()
+    if (!text) return
+    const user = JSON.parse(localStorage.getItem('thyrosense-user') || '{}')
+    try {
+      const res = await api.post(`/patients/predictions/${predictionId}/notes`, {
+        doctor_id: user.id,
+        note: text,
+      })
+      setNotes(prev => ({
+        ...prev,
+        [predictionId]: [res.data, ...(prev[predictionId] || [])],
+      }))
+      setNoteInputs(prev => ({ ...prev, [predictionId]: '' }))
+      toast('Clinical note saved', 'success')
+    } catch {
+      toast('Failed to save note', 'error')
+    }
+  }
 
   if (loading) {
     return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)' }}>Loading…</div>
@@ -156,23 +186,76 @@ export default function PatientDetail() {
           <h3 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 1.25rem' }}>
             Prediction History
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {sorted.map((pred, i) => {
               const color = CLASS_COLORS[pred.predicted_class] || '#6B7280'
+              const predNotes = notes[pred.id] || []
               return (
-                <div key={pred.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.9rem 1rem', background: i === 0 ? `${color}08` : 'var(--surface-hover)', border: i === 0 ? `1px solid ${color}30` : '1px solid var(--border)', borderRadius: 11 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                      <ClassBadge diagnosisClass={pred.predicted_class} size="sm" />
-                      {i === 0 && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Latest</span>}
+                <div key={pred.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.9rem 1rem', background: i === 0 ? `${color}08` : 'var(--surface-hover)', border: i === 0 ? `1px solid ${color}30` : '1px solid var(--border)', borderRadius: 11, marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <ClassBadge diagnosisClass={pred.predicted_class} size="sm" />
+                        {i === 0 && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Latest</span>}
+                      </div>
+                      <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                        {new Date(pred.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
                     </div>
-                    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                      {new Date(pred.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    <span style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1rem', color }}>
+                      {Math.round((pred.confidence || 0) * 100)}%
                     </span>
                   </div>
-                  <span style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '1rem', color }}>
-                    {Math.round((pred.confidence || 0) * 100)}%
-                  </span>
+
+                  <div style={{ marginLeft: '0.5rem', padding: '0.85rem 1rem', background: 'var(--surface)', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: '0 8px 8px 0' }}>
+                    <p style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.55rem' }}>
+                      Clinical Notes
+                    </p>
+
+                    {predNotes.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.65rem' }}>
+                        {predNotes.map(note => (
+                          <div key={note.id} style={{ padding: '0.5rem 0.75rem', background: 'var(--surface-hover)', borderRadius: 7 }}>
+                            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.83rem', color: 'var(--text)', margin: 0, lineHeight: 1.55 }}>{note.note}</p>
+                            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                              {note.doctor_name} · {new Date(note.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Add clinical note… (Enter to save)"
+                        value={noteInputs[pred.id] || ''}
+                        onChange={e => setNoteInputs(prev => ({ ...prev, [pred.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleNoteSubmit(pred.id) }}
+                        style={{
+                          flex: 1, padding: '0.48rem 0.75rem', borderRadius: 7,
+                          border: '1px solid var(--border)', background: 'var(--surface-hover)',
+                          color: 'var(--text)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.82rem',
+                          outline: 'none', transition: 'border-color 0.15s ease',
+                        }}
+                        onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+                        onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                      />
+                      <button
+                        onClick={() => handleNoteSubmit(pred.id)}
+                        style={{
+                          padding: '0.48rem 1rem', borderRadius: 7, border: 'none', cursor: 'pointer',
+                          background: 'var(--accent)', color: 'var(--accent-text)',
+                          fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: '0.82rem',
+                          transition: 'opacity 0.15s ease',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )
             })}

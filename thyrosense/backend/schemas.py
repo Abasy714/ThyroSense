@@ -66,6 +66,16 @@ class PredictResponse(BaseModel):
     clinical_interpretation: str
 
 
+class NoteOut(BaseModel):
+    id: int
+    doctor_name: str
+    note: str
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
 class PredictionOut(BaseModel):
     id: int
     predicted_class: str
@@ -75,6 +85,7 @@ class PredictionOut(BaseModel):
     clinical_interpretation: str
     form_data: dict
     created_at: datetime
+    notes: List[NoteOut] = []
 
     class Config:
         from_attributes = True

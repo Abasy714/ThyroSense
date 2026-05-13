@@ -1,35 +1,46 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional
 from database import get_db
-from models import User, DoctorProfile
+from models import User, DoctorProfile, PatientProfile
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 
-class ProfileUpdateRequest(BaseModel):
-    user_id: int
-    full_name: Optional[str] = None
-    specialty: Optional[str] = None
-    hospital: Optional[str] = None
-
-
 @router.put("")
-def update_profile(req: ProfileUpdateRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == req.user_id).first()
-    if not user or user.role != "doctor":
-        raise HTTPException(status_code=403, detail="Doctor access only")
+def update_profile(data: dict, db: Session = Depends(get_db)):
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
 
-    if req.full_name:
-        user.full_name = req.full_name
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == req.user_id).first()
-    if profile:
-        if req.specialty is not None:
-            profile.specialty = req.specialty
-        if req.hospital is not None:
-            profile.institution = req.hospital
+    if "full_name" in data and data["full_name"]:
+        user.full_name = data["full_name"]
+
+    if user.role == "doctor":
+        profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == user_id).first()
+        if profile:
+            if "specialty" in data and data["specialty"] is not None:
+                profile.specialty = data["specialty"]
+            if "hospital" in data and data["hospital"] is not None:
+                profile.institution = data["hospital"]
+
+    elif user.role == "patient":
+        profile = db.query(PatientProfile).filter(PatientProfile.user_id == user_id).first()
+        if profile:
+            if "phone" in data:
+                profile.phone = data["phone"]
+            if "dob" in data:
+                profile.dob = data["dob"]
+            if "age" in data and data["age"] is not None:
+                try:
+                    profile.age = int(data["age"])
+                except (ValueError, TypeError):
+                    pass
+            if "sex" in data and data["sex"] in ("M", "F"):
+                profile.sex = data["sex"]
 
     db.commit()
     return {"ok": True, "name": user.full_name}

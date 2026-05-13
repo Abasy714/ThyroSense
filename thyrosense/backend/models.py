@@ -38,6 +38,7 @@ class PatientProfile(Base):
     dob = Column(String)
     sex = Column(String)
     phone = Column(String)
+    age = Column(Integer, nullable=True)
     risk_level = Column(String, default="low")
     status = Column(String, default="Active")
 
@@ -59,6 +60,7 @@ class Prediction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     patient_profile = relationship("PatientProfile", back_populates="predictions")
+    notes = relationship("ClinicalNote", back_populates="prediction")
 
     @property
     def top_features(self):
@@ -67,3 +69,16 @@ class Prediction(Base):
     @property
     def form_data(self):
         return json.loads(self.form_data_json) if self.form_data_json else {}
+
+
+class ClinicalNote(Base):
+    __tablename__ = "clinical_notes"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    prediction_id = Column(Integer, ForeignKey("predictions.id"))
+    doctor_id     = Column(Integer, ForeignKey("users.id"))
+    note          = Column(Text, nullable=False)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+    prediction = relationship("Prediction", back_populates="notes")
+    doctor     = relationship("User")

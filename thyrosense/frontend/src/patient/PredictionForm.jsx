@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import Papa from 'papaparse'
 import api from '../api'
 import StepIndicator from './components/StepIndicator'
+import { useToast } from '../components/Toast'
 
 const STEPS = ['Personal Info', 'Lab Results', 'Clinical History']
 
@@ -133,17 +135,57 @@ function StepHeading({ title, sub }) {
   )
 }
 
-function Step1({ form, setForm }) {
+function ProfileBadge() {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+      padding: '2px 7px', borderRadius: 99,
+      background: 'color-mix(in srgb, #10B981 15%, transparent)',
+      border: '1px solid color-mix(in srgb, #10B981 35%, transparent)',
+      fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 700,
+      color: '#10B981', letterSpacing: '0.03em', marginLeft: '0.45rem',
+    }}>
+      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+        <circle cx="4" cy="4" r="3.5" fill="#10B981" />
+        <path d="M2 4l1.5 1.5L6 2.5" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      From your profile
+    </span>
+  )
+}
+
+function CsvBadge() {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+      padding: '2px 7px', borderRadius: 99,
+      background: 'color-mix(in srgb, #2196F3 15%, transparent)',
+      border: '1px solid color-mix(in srgb, #2196F3 35%, transparent)',
+      fontFamily: 'DM Sans, sans-serif', fontSize: '0.65rem', fontWeight: 700,
+      color: '#2196F3', letterSpacing: '0.03em', flexShrink: 0,
+    }}>
+      From CSV
+    </span>
+  )
+}
+
+function Step1({ form, setForm, profilePrefilled, setProfilePrefilled }) {
   const [ageFocused, setAgeFocused] = useState(false)
   return (
     <div>
       <StepHeading title="Patient Information" sub="Basic demographic information for this analysis" />
       <div style={{ marginBottom: '1.5rem' }}>
-        <LabelText>Age</LabelText>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.4rem' }}>
+          <LabelText>Age</LabelText>
+          {profilePrefilled.age && <ProfileBadge />}
+        </div>
         <input
           type="number" min={1} max={100}
           value={form.age}
-          onChange={e => setForm(f => ({ ...f, age: e.target.value }))}
+          onChange={e => {
+            setForm(f => ({ ...f, age: e.target.value }))
+            setProfilePrefilled(p => ({ ...p, age: false }))
+          }}
           placeholder="e.g. 45"
           style={fieldStyle(ageFocused)}
           onFocus={() => setAgeFocused(true)}
@@ -151,7 +193,10 @@ function Step1({ form, setForm }) {
         />
       </div>
       <div>
-        <LabelText>Biological Sex</LabelText>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.4rem' }}>
+          <LabelText>Biological Sex</LabelText>
+          {profilePrefilled.sex && <ProfileBadge />}
+        </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           {[
             { val: 'M', label: 'Male', icon: (
@@ -173,7 +218,10 @@ function Step1({ form, setForm }) {
             return (
               <button
                 key={val} type="button"
-                onClick={() => setForm(f => ({ ...f, sex: val }))}
+                onClick={() => {
+                  setForm(f => ({ ...f, sex: val }))
+                  setProfilePrefilled(p => ({ ...p, sex: false }))
+                }}
                 style={{
                   flex: 1, padding: '1.25rem', borderRadius: 12,
                   border: `2px solid ${sel ? 'var(--accent)' : 'var(--border)'}`,
@@ -196,16 +244,98 @@ function Step1({ form, setForm }) {
   )
 }
 
-function Step2({ form, setForm }) {
+function Step2({ form, setForm, csvPrefilled, setCsvPrefilled, csvFileName, setCsvFileName, toast }) {
   const [focused, setFocused] = useState(null)
+
+  const CSV_COLUMNS = ['TSH', 'T3', 'TT4', 'T4U', 'FTI']
+
+  const handleCSVUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const row = results.data[0]
+        if (!row) { toast('CSV appears empty', 'error'); return }
+        const mapped = {}
+        CSV_COLUMNS.forEach(col => {
+          const val = row[col] ?? row[col.toLowerCase()]
+          if (val !== undefined && val !== '') {
+            const n = Number(val)
+            if (!isNaN(n)) mapped[col] = n
+          }
+        })
+        if (Object.keys(mapped).length === 0) {
+          toast('No recognized columns found. Expected: TSH, T3, TT4, T4U, FTI', 'error')
+          return
+        }
+        setForm(prev => {
+          const updated = { ...prev }
+          Object.entries(mapped).forEach(([hormone, val]) => {
+            updated[hormone] = { measured: true, value: String(val) }
+          })
+          return updated
+        })
+        setCsvPrefilled(Object.keys(mapped))
+        setCsvFileName(file.name)
+        toast(`Loaded ${Object.keys(mapped).length} values from ${file.name}`, 'success')
+        e.target.value = ''
+      },
+      error: () => toast('Failed to parse CSV', 'error'),
+    })
+  }
+
+  const downloadTemplate = () => {
+    const csv = 'TSH,T3,TT4,T4U,FTI\n1.5,1.2,90,0.9,85\n'
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'thyrosense_lab_template.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div>
       <StepHeading title="Thyroid Panel Results" sub="Enter available measurements. Toggle off any that were not performed." />
+
+      {/* CSV upload */}
+      <div style={{ marginBottom: '1.25rem', padding: '1rem', background: 'var(--surface-hover)', border: '1px dashed var(--border)', borderRadius: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text)' }}>
+            Import from CSV
+            {csvFileName && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: '#2196F3', marginLeft: '0.5rem' }}>{csvFileName}</span>}
+          </span>
+          <button
+            type="button" onClick={downloadTemplate}
+            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Download template
+          </button>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <span style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s ease' }}>
+            Choose file
+          </span>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+            CSV with columns: TSH, T3, TT4, T4U, FTI
+          </span>
+          <input type="file" accept=".csv" onChange={handleCSVUpload} style={{ display: 'none' }} />
+        </label>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--text-muted)' }}>OR enter manually</span>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {HORMONES.map(({ key, label, unit, range }) => {
           const measured = form[key].measured
           const val = form[key].value
           const warn = measured && isOutOfRange(key, val)
+          const fromCsv = csvPrefilled.includes(key)
           return (
             <div key={key} style={{
               display: 'flex', alignItems: 'center', gap: '0.85rem',
@@ -214,7 +344,10 @@ function Step2({ form, setForm }) {
               opacity: measured ? 1 : 0.55, transition: 'opacity 0.2s',
             }}>
               <div style={{ flex: '0 0 90px' }}>
-                <div style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>{label}</div>
+                <div style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  {label}
+                  {fromCsv && <CsvBadge />}
+                </div>
                 <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
                   Ref: {range}{unit ? ` ${unit}` : ''}
                 </div>
@@ -233,7 +366,10 @@ function Step2({ form, setForm }) {
                   type="number" step="any"
                   disabled={!measured}
                   value={val}
-                  onChange={e => setForm(f => ({ ...f, [key]: { ...f[key], value: e.target.value } }))}
+                  onChange={e => {
+                    setForm(f => ({ ...f, [key]: { ...f[key], value: e.target.value } }))
+                    setCsvPrefilled(p => p.filter(k => k !== key))
+                  }}
                   placeholder={measured ? '0.00' : '—'}
                   style={{
                     ...fieldStyle(focused === key),
@@ -304,11 +440,31 @@ function Step3({ form, setForm }) {
 
 export default function PredictionForm() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [step, setStep] = useState(1)
   const [direction, setDirection] = useState(1)
   const [form, setForm] = useState(initForm)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [profilePrefilled, setProfilePrefilled] = useState({ age: false, sex: false })
+  const [csvPrefilled, setCsvPrefilled] = useState([])
+  const [csvFileName, setCsvFileName] = useState('')
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('thyrosense-user') || '{}')
+    api.get(`/patients/me?user_id=${user.id}`)
+      .then(res => {
+        const profile = res.data
+        setForm(prev => ({
+          ...prev,
+          age: profile.age ? String(profile.age) : prev.age,
+          sex: profile.sex || prev.sex,
+        }))
+        if (profile.age) setProfilePrefilled(p => ({ ...p, age: true }))
+        if (profile.sex) setProfilePrefilled(p => ({ ...p, sex: true }))
+      })
+      .catch(() => {})
+  }, [])
 
   function goNext() { setDirection(1); setStep(s => s + 1) }
   function goPrev() { setDirection(-1); setStep(s => s - 1) }
@@ -382,8 +538,8 @@ export default function PredictionForm() {
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '2rem' }}>
-              {step === 1 && <Step1 form={form} setForm={setForm} />}
-              {step === 2 && <Step2 form={form} setForm={setForm} />}
+              {step === 1 && <Step1 form={form} setForm={setForm} profilePrefilled={profilePrefilled} setProfilePrefilled={setProfilePrefilled} />}
+              {step === 2 && <Step2 form={form} setForm={setForm} csvPrefilled={csvPrefilled} setCsvPrefilled={setCsvPrefilled} csvFileName={csvFileName} setCsvFileName={setCsvFileName} toast={toast} />}
               {step === 3 && <Step3 form={form} setForm={setForm} />}
             </div>
           </motion.div>
@@ -402,7 +558,6 @@ export default function PredictionForm() {
         </div>
       )}
 
-      {/* Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.25rem', gap: '1rem' }}>
         {step > 1 ? (
           <button

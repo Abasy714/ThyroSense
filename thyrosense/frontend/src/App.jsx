@@ -10,6 +10,7 @@ import PatientHome from './patient/PatientHome'
 import PredictionForm from './patient/PredictionForm'
 import PredictionResult from './patient/PredictionResult'
 import PatientHistory from './patient/PatientHistory'
+import PatientProfile from './patient/PatientProfile'
 import DoctorApp from './doctor/DoctorApp'
 import DoctorHome from './doctor/DoctorHome'
 import PatientList from './doctor/PatientList'
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="predict" element={<PredictionForm />} />
           <Route path="result" element={<PredictionResult />} />
           <Route path="history" element={<PatientHistory />} />
+          <Route path="profile" element={<PatientProfile />} />
         </Route>
         <Route
           path="/doctor"

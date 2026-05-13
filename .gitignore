@@ -44,7 +44,6 @@ backend/model/*.joblib
 notebook/data/
 *.data
 *.names
-*.csv
 
 # Node / React
 node_modules/

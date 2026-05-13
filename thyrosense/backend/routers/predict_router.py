@@ -41,3 +41,8 @@ def predict(req: PredictRequest, user_id: int = 0, db: Session = Depends(get_db)
                 db.commit()
 
     return result
+
+
+@router.get("/model-results")
+def model_results():
+    return {"results": get_gridsearch_results()}

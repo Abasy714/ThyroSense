@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import api from '../api'
 import ClassBadge from '../patient/components/ClassBadge'
 import ShapChart from '../patient/components/ShapChart'
+import { useToast } from '../components/Toast'
 
 const CLASS_COLORS = {
   healthy: '#10B981',
@@ -31,8 +32,10 @@ function getAge(dob) {
 export default function PatientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [patient, setPatient] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     const uid = JSON.parse(localStorage.getItem('thyrosense-user') || '{}').id
@@ -41,6 +44,22 @@ export default function PatientDetail() {
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [id])
+
+  const handleSendMessage = () => {
+    if (!message.trim()) return
+    const user = JSON.parse(localStorage.getItem('thyrosense-user') || '{}')
+    const sent = JSON.parse(localStorage.getItem('thyrosense-messages') || '[]')
+    sent.push({
+      to: patient.full_name,
+      to_email: patient.email,
+      from: user.full_name,
+      message: message,
+      date: new Date().toISOString(),
+    })
+    localStorage.setItem('thyrosense-messages', JSON.stringify(sent))
+    toast('Message sent to ' + patient.full_name, 'success')
+    setMessage('')
+  }
 
   if (loading) {
     return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)' }}>Loading…</div>
@@ -179,6 +198,46 @@ export default function PatientDetail() {
           </div>
         </motion.div>
       )}
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.25 }}
+        style={{ marginTop: '1.25rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.5rem' }}
+      >
+        <h3 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', margin: '0 0 1rem' }}>
+          Send Message to Patient
+        </h3>
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="Type your message..."
+          rows={4}
+          style={{
+            width: '100%', padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid var(--border)',
+            background: 'var(--surface-hover)', color: 'var(--text)', fontFamily: 'DM Sans, sans-serif',
+            fontSize: '0.85rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+            transition: 'border-color 0.18s ease', lineHeight: 1.6,
+          }}
+          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+          onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+        />
+        <div style={{ marginTop: '0.85rem', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={handleSendMessage}
+            style={{
+              padding: '0.6rem 1.4rem', borderRadius: 9, border: 'none', cursor: 'pointer',
+              background: 'var(--accent)', color: 'var(--accent-text)',
+              fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: '0.85rem',
+              transition: 'opacity 0.15s ease',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            Send
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
   )
 }
